@@ -1,0 +1,85 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or your chosen database
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
+}
+
+// A user who can have exactly one profile, can send many messages, and can participate in many conversations
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 1:1 → Profile
+  profile   Profile?
+  profileId String?  @unique
+
+  // 1:M → Message
+  messages Message[]
+
+  // M:N → Conversation (Prisma will auto-create a join table behind the scenes)
+  conversations Conversation[] @relation("UserConversations")
+
+  @@map("users")
+}
+
+// A one-to-one extension of User (e.g., bio, avatar URL)
+model Profile {
+  id        String   @id @default(uuid())
+  bio       String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+
+  // Back-link to User
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+
+  @@map("profiles")
+}
+
+// A chat thread; multiple users can be part of it, and it can have many messages
+model Conversation {
+  id        String   @id @default(uuid())
+  title     String? // e.g., group chat name (optional)
+  createdAt DateTime @default(now())
+
+  // M:N → User
+  participants User[] @relation("UserConversations")
+
+  // 1:M → Message
+  messages Message[]
+
+  @@map("conversations")
+}
+
+// A single message sent by one user inside one conversation
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  // 1:M → User (sender)
+  sender   User   @relation(fields: [senderId], references: [id])
+  senderId String
+
+  // 1:M → Conversation
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String
+
+  @@map("messages")
+}
