@@ -35,6 +35,9 @@ model User {
   // M:N → Conversation (Prisma will auto-create a join table behind the scenes)
   conversations Conversation[] @relation("UserConversations")
 
+  // Authored Conversations
+  authoredConversations Conversation[] @relation("author")
+
   @@map("users")
 }
 
@@ -63,6 +66,10 @@ model Conversation {
 
   // 1:M → Message
   messages Message[]
+
+  // 1:M → User (author of the conversation)
+  author User @relation("author", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
 
   @@map("conversations")
 }
