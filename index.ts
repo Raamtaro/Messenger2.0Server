@@ -7,9 +7,10 @@ import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import { PrismaClient } from "@prisma/client";
 import cors from "cors";
 import { createServer } from "http";
-import { Server } from "socket.io";
+// import { Server } from "socket.io";
 import dotenv from "dotenv";
 import router from "./src/routes";
+import { initSocket } from "./src/webSocket/socket";
 
 dotenv.config();
 
@@ -17,11 +18,17 @@ const PORT = 3000;
 
 const app: Express = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-    cors: {
-        origin: process.env.CLIENT_ORIGIN,
-    }
-})
+const io = initSocket(httpServer);
+// const io = new Server(httpServer, {
+//     cors: {
+//         origin: process.env.CLIENT_ORIGIN,
+//     }
+// })
+
+
+/**
+ * Middlewares
+ */
 
 app.use(cors());
 app.use(express.json());
@@ -51,10 +58,25 @@ passport.use(jwtStrategy)
 app.use(passport.initialize())
 app.use(passport.session())
 
+/**
+ * Routes
+ */
 app.use("/auth", router.auth);
+app.use("/conversation", router.conversation);
+app.use("/message", router.message);
+
+
+/**
+ * WebSocket Setup
+ */
 
 io.on("connection", (socket) => {
     console.log("A user connected");
+
+    socket.on("joinConversation", (conversationId: string) => {
+        socket.join(conversationId);
+    });
+
     socket.on("disconnect", () => {
         console.log("A user disconnected");
     });
