@@ -7,7 +7,6 @@ import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import { PrismaClient } from "@prisma/client";
 import cors from "cors";
 import { createServer } from "http";
-// import { Server } from "socket.io";
 import dotenv from "dotenv";
 import router from "./src/routes";
 import { initSocket } from "./src/webSocket/socket";
@@ -19,11 +18,7 @@ const PORT = 3000;
 const app: Express = express();
 const httpServer = createServer(app);
 const io = initSocket(httpServer);
-// const io = new Server(httpServer, {
-//     cors: {
-//         origin: process.env.CLIENT_ORIGIN,
-//     }
-// })
+
 
 
 /**
