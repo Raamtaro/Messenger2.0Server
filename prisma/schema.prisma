@@ -85,7 +85,7 @@ model Message {
   senderId String
 
   // 1:M → Conversation
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
 
   @@map("messages")

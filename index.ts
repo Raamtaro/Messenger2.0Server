@@ -18,7 +18,7 @@ const PORT = 3000;
 const app: Express = express();
 const httpServer = createServer(app);
 const io = initSocket(httpServer);
-
+const prisma = new PrismaClient();
 
 
 /**
@@ -28,6 +28,27 @@ const io = initSocket(httpServer);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get("/health", async (req: Request, res: Response) => {
+  try {
+    // Try a trivial DB query to ensure Postgres is up
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.status(200).json({
+      status: "ok",
+      db: "connected",
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("DB health check failed:", error);
+    res.status(500).json({
+      status: "error",
+      db: "unreachable",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 app.use(
     session(
