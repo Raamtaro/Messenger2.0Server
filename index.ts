@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import passport from "passport";
-import { localStrategy } from "./src/passport/passportLocal";
-import { jwtStrategy } from "./src/passport/passportJwt";
+import { localStrategy } from "./src/passport/passportLocal.js";
+import { jwtStrategy } from "./src/passport/passportJwt.js";
 import session from "express-session";
 import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import { PrismaClient } from "@prisma/client";
@@ -9,7 +9,7 @@ import cors from "cors";
 import { createServer } from "http";
 import dotenv from "dotenv";
 import router from "./src/routes";
-import { initSocket } from "./src/webSocket/socket";
+import { initSocket } from "./src/webSocket/socket.js";
 
 dotenv.config();
 
