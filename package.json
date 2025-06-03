@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "postinstall": "npx prisma generate && npx prisma migrate deploy",
     "start": "node --watch dist/index.js",
     "dev": "tsx --watch index.ts"
   },
