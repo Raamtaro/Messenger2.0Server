@@ -80,6 +80,7 @@ app.use(passport.session())
 app.use("/auth", router.auth);
 app.use("/conversation", router.conversation);
 app.use("/message", router.message);
+app.use("/user", router.user);
 
 
 /**
