@@ -2,6 +2,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
+import { getIO } from "../webSocket/socket";
 
 
 const prisma = new PrismaClient();
@@ -18,6 +19,12 @@ type UpdateConversationBody = {
     removeParticipantEmails?: string[];
 };
 
+type CreateWithMessageBody = {
+  title?: string;
+  participantEmails: string[];
+  initialMessage: string;
+};
+
 //----------------------------------------------------------------
 // GET Handlers
 //----------------------------------------------------------------
@@ -26,27 +33,42 @@ type UpdateConversationBody = {
  * GET /conversation/all
  * List every conversation where the authenticated user is a participant
  */
-export const listUserConversations = async (
-    req: Request,
-    res: Response
-): Promise<void> => {
-    const userId = (req.user as { id: string }).id;
+export const listUserConversations = async (req: Request, res: Response) => {
+  const userId = (req.user as { id: string }).id;
 
-    // Find all conversations where this user is in participants
-    const convos = await prisma.conversation.findMany({
-        where: {
-            participants: {
-                some: { id: userId },
-            },
-        },
-        include: {
-            participants: { select: { id: true, email: true, name: true } },
-            author: { select: { id: true, email: true, name: true } },
-        },
+  // 1) Fetch each conversation + its most recent message
+  const convos = await prisma.conversation.findMany({
+    where: { participants: { some: { id: userId } } },
+    select: {
+      id: true,
+      title: true,
+      createdAt: true,
+      // aggregate “most recent” message content & createdAt
+      messages: {
         orderBy: { createdAt: "desc" },
-    });
+        take: 1,
+        select: { content: true, createdAt: true },
+      },
+      // optional: participants/authors if you need them
+    },
+  });
 
-    res.json(convos);
+  // 2) Map into the shape the client expects:
+  //    { id, title, lastMessage, updatedAt }
+  const result = convos.map((c) => {
+    const last = c.messages[0];
+    return {
+      id: c.id,
+      title: c.title,
+      lastMessage: last ? last.content : "",
+      updatedAt: last ? last.createdAt.toISOString() : c.createdAt.toISOString(),
+    };
+  });
+
+  // 3) Sort by updatedAt descending so most recently‐spoken convos come first
+  result.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  res.json(result);
 };
 
 /**
@@ -89,7 +111,7 @@ export const getConversationById = async (
 };
 
 //----------------------------------------------------------------
-// POST Handler
+// POST Handler(s)
 //----------------------------------------------------------------
 
 /**
@@ -146,6 +168,85 @@ export const createConversation = async (
 
     res.status(201).json(newConvo);
 };
+
+
+/**
+ * POST /with-message
+ * Body: CreateWithMessageBody (type defined at top of the module)
+ *
+ * Does everything as `createConversation` but also requires an initial message to start the conversation.
+ * This is so that the socket can immediately emit the `newMessage` event and send the notification to all users in the room.
+ */
+
+export const createConversationWithMessage = async (req: Request<{}, {}, CreateWithMessageBody>, res: Response): Promise<void> => {
+    const authorId = (req.user as { id: string }).id;
+    const {title, participantEmails, initialMessage} = req.body;
+
+    const result = await prisma.$transaction(async (tx) => {
+
+        const conversation = await tx.conversation.create(
+            {
+                data: {
+                    title: title || null,
+                    author: { connect: {id: authorId} },
+                    participants: {
+                        connect: [
+                            authorId,
+                            ...(await tx.user.findMany(
+                                    {
+                                        where: {email: {in: participantEmails}},
+                                        select: {id: true}
+                                    }
+                                )
+                            ).map((user) => user.id),
+                        ].map((id) => ({ id}))
+                    }
+                },
+                include: {
+                    participants: { select: { id: true, email: true, name: true } },
+                    author: { select: { id: true, email: true, name: true } },
+                }
+            }
+        )
+
+        const message = await tx.message.create(
+            {
+                data: {
+                    content: initialMessage,
+                    sender: {connect: {id: authorId}},
+                    conversation: {connect: {id: conversation.id}}
+                },
+                include: {
+                    sender: {select: {id: true, name: true, email: true}}
+                }
+            }
+        )
+
+        return {conversation: conversation, message: message}
+
+    })
+
+    const io = getIO();
+    io.to(result.conversation.id).emit("newMessage", {
+        conversationId: result.conversation.id,
+        content: result.message.content,
+        createdAt: result.message.createdAt. toISOString(),
+        sender: result.message.sender,
+    });
+
+    //Optional newConversation event - not sure if needed and might delete later.
+    result.conversation.participants.forEach((p) => {
+        io.to(p.id).emit("newConversation", {
+            id: result.conversation.id,
+            title: result.conversation.title,
+            lastMessage: result.message.content,
+            updatedAt: result.message.createdAt.toISOString(),
+        })
+    })
+
+    res.status(201).json(result);
+}
+
 
 //----------------------------------------------------------------
 // PUT Handler

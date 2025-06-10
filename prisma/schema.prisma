@@ -60,6 +60,7 @@ model Conversation {
   id        String   @id @default(uuid())
   title     String? // e.g., group chat name (optional)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // M:N → User
   participants User[] @relation("UserConversations")
