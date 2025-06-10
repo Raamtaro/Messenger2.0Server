@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node --watch dist/index.js",
+    "start": "node --watch --experimental-specifier-resolution=node dist/index.js",
     "dev": "tsx --watch index.ts"
   },
   "keywords": [],
