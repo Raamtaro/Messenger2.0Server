@@ -10,7 +10,7 @@ import { createServer } from "http";
 import dotenv from "dotenv";
 import router from "./src/routes";
 import { initSocket } from "./src/webSocket/socket.js";
-import jwt from "jsonwebtoken";
+// import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -18,20 +18,20 @@ const PORT = 3000;
 
 const app: Express = express();
 const httpServer = createServer(app);
-const io = initSocket(httpServer);
+initSocket(httpServer);
 
-io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
-    if (!token) return next(new Error("No token"));
-    try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET!);
-        // assume payload.userId
-        socket.data.userId = (payload as any).userId;
-        return next();
-    } catch (e) {
-        return next(new Error("Invalid token"));
-    }
-});
+// io.use((socket, next) => {
+//     const token = socket.handshake.auth.token;
+//     if (!token) return next(new Error("No token"));
+//     try {
+//         const payload = jwt.verify(token, process.env.JWT_SECRET!);
+//         // assume payload.userId
+//         socket.data.userId = (payload as any).userId;
+//         return next();
+//     } catch (e) {
+//         return next(new Error("Invalid token"));
+//     }
+// });
 
 const prisma = new PrismaClient();
 
@@ -98,26 +98,26 @@ app.use("/message", router.message);
 app.use("/user", router.user);
 
 
-/**
- * WebSocket Setup
- */
+// /**
+//  * WebSocket Setup
+//  */
 
-io.on("connection", (socket) => {
-    console.log("A user connected");
+// io.on("connection", (socket) => {
+//     console.log("A user connected");
 
-    const userId = socket.data.userId as string;
-    // join their personal room
-    socket.join(userId);
+//     const userId = socket.data.userId as string;
+//     // join their personal room
+//     socket.join(userId);
 
-    socket.on("joinConversation", (conversationId: string) => {
-        socket.join(conversationId);
-    });
+//     socket.on("joinConversation", (conversationId: string) => {
+//         socket.join(conversationId);
+//     });
 
-    socket.on("disconnect", () => {
-        console.log("A user disconnected");
-    });
-    // Handle other socket events here
-});
+//     socket.on("disconnect", () => {
+//         console.log("A user disconnected");
+//     });
+//     // Handle other socket events here
+// });
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);
